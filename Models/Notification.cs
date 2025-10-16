@@ -27,6 +27,8 @@ public enum NotificationType
     MentionedInMessage,
     AddedToGroup,
     FriendRequest,
+    FriendRequestAccepted,
+    NewFollower,
     System
 }
 

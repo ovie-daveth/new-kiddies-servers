@@ -124,3 +124,10 @@ UpgradeLog*.htm
 ServiceFabricBackup/
 *.rptproj.bak
 
+# Environment files (contains secrets) - DO NOT COMMIT
+.env
+.env.local
+.env.production
+.env.development
+*.env
+

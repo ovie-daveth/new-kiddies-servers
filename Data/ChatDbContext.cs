@@ -18,6 +18,8 @@ public class ChatDbContext : DbContext
     public DbSet<Comment> Comments { get; set; }
     public DbSet<PostLike> PostLikes { get; set; }
     public DbSet<CommentLike> CommentLikes { get; set; }
+    public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<Follow> Follows { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -163,6 +165,41 @@ public class ChatDbContext : DbContext
             entity.HasOne(e => e.User)
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Friendship configuration
+        modelBuilder.Entity<Friendship>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.RequesterId, e.AddresseeId }).IsUnique();
+            entity.HasIndex(e => e.Status);
+            
+            entity.HasOne(e => e.Requester)
+                  .WithMany(u => u.SentFriendRequests)
+                  .HasForeignKey(e => e.RequesterId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(e => e.Addressee)
+                  .WithMany(u => u.ReceivedFriendRequests)
+                  .HasForeignKey(e => e.AddresseeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Follow configuration
+        modelBuilder.Entity<Follow>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.FollowerId, e.FollowingId }).IsUnique();
+            
+            entity.HasOne(e => e.Follower)
+                  .WithMany(u => u.Following)
+                  .HasForeignKey(e => e.FollowerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasOne(e => e.Following)
+                  .WithMany(u => u.Followers)
+                  .HasForeignKey(e => e.FollowingId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
     }

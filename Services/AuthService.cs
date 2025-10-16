@@ -1,6 +1,7 @@
 using ChatApp.Backend.Data;
 using ChatApp.Backend.DTOs;
 using ChatApp.Backend.Models;
+using ChatApp.Backend.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -13,11 +14,52 @@ public class AuthService : IAuthService
 {
     private readonly ChatDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly AppSettings _appSettings;
+    private readonly ILogger<AuthService> _logger;
+    private string? _fromEmail;
+    private CoreBankingParameterStore? _coreBankingSettings;
 
-    public AuthService(ChatDbContext context, IConfiguration configuration)
+    public AuthService(
+        ChatDbContext context, 
+        IConfiguration configuration, 
+        AppSettings appSettings,
+        ILogger<AuthService> logger)
     {
         _context = context;
         _configuration = configuration;
+        _appSettings = appSettings;
+        _logger = logger;
+
+        // Test Parameter Store connection on startup
+        InitializeParameterStoreAsync().GetAwaiter().GetResult();
+    }
+
+    private async Task InitializeParameterStoreAsync()
+    {
+        try
+        {
+            _logger.LogInformation("🔌 Testing Parameter Store connection...");
+            
+            // Fetch CoreBanking settings from Parameter Store
+            _coreBankingSettings = await _appSettings.GetCoreBankingSettings();
+            
+            _logger.LogInformation("✅ Parameter Store connected successfully!");
+            _logger.LogInformation("📡 Communications API: {BaseUrl}", _coreBankingSettings.Communications.BaseUrl);
+            _logger.LogInformation("📱 SMS Service API: {BaseUrl}", _coreBankingSettings.SMSService.BaseUrl);
+            _logger.LogInformation("🏦 Core Enquiry API: {BaseUrl}", _coreBankingSettings.CoreEnquiry.BaseUrl);
+            
+            // Fetch FromEmail setting
+            _fromEmail = await _appSettings.GetSettingsAsync(_appSettings.FromEmail);
+            _logger.LogInformation("📧 From Email configured: {FromEmail}", _fromEmail);
+            
+            _logger.LogInformation("🎉 CoreBanking services initialized successfully!");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Failed to connect to Parameter Store!");
+            _logger.LogWarning("⚠️  Authentication service will continue, but email features may not work");
+            // Don't throw - allow service to start even if Parameter Store is unavailable
+        }
     }
 
     public async Task<AuthResponseDto> Register(RegisterDto registerDto)
@@ -63,11 +105,11 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> Login(LoginDto loginDto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == loginDto.Username);
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
         {
-            throw new Exception("Invalid email or password");
+            throw new Exception("Invalid username or password");
         }
 
         var token = GenerateJwtToken(user);

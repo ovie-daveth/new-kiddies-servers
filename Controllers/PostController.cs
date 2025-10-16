@@ -6,7 +6,6 @@ using System.Security.Claims;
 
 namespace ChatApp.Backend.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class PostController : ControllerBase
@@ -25,6 +24,7 @@ public class PostController : ControllerBase
         _notificationService = notificationService;
     }
 
+    [Authorize]
     [HttpPost]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<PostDto>> CreatePost([FromForm] CreatePostDto postDto)
@@ -72,20 +72,22 @@ public class PostController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("feed")]
     public async Task<ActionResult<PostFeedDto>> GetFeed(
         [FromQuery] int skip = 0,
         [FromQuery] int take = 20)
     {
-        var userId = GetUserId();
+        var userId = GetUserIdOrDefault();
         var feed = await _postService.GetFeed(userId, skip, take);
         return Ok(feed);
     }
 
+    [AllowAnonymous]
     [HttpGet("{postId}")]
     public async Task<ActionResult<PostDto>> GetPost(int postId)
     {
-        var userId = GetUserId();
+        var userId = GetUserIdOrDefault();
         var post = await _postService.GetPostById(postId, userId);
         
         if (post == null)
@@ -96,17 +98,19 @@ public class PostController : ControllerBase
         return Ok(post);
     }
 
+    [AllowAnonymous]
     [HttpGet("user/{userId}")]
     public async Task<ActionResult<PostFeedDto>> GetUserPosts(
         int userId,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 20)
     {
-        var currentUserId = GetUserId();
+        var currentUserId = GetUserIdOrDefault();
         var posts = await _postService.GetUserPosts(userId, currentUserId, skip, take);
         return Ok(posts);
     }
 
+    [Authorize]
     [HttpPut("{postId}")]
     public async Task<ActionResult<PostDto>> UpdatePost(int postId, [FromBody] UpdatePostDto postDto)
     {
@@ -126,6 +130,7 @@ public class PostController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpDelete("{postId}")]
     public async Task<IActionResult> DeletePost(int postId)
     {
@@ -145,6 +150,7 @@ public class PostController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpPost("{postId}/like")]
     public async Task<IActionResult> TogglePostLike(int postId)
     {
@@ -171,17 +177,19 @@ public class PostController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("{postId}/comments")]
     public async Task<ActionResult<List<CommentDto>>> GetComments(
         int postId,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50)
     {
-        var userId = GetUserId();
+        var userId = GetUserIdOrDefault();
         var comments = await _postService.GetPostComments(postId, userId, skip, take);
         return Ok(comments);
     }
 
+    [Authorize]
     [HttpPost("comments")]
     public async Task<ActionResult<CommentDto>> AddComment([FromBody] CreateCommentDto commentDto)
     {
@@ -215,6 +223,7 @@ public class PostController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpPut("comments/{commentId}")]
     public async Task<ActionResult<CommentDto>> UpdateComment(int commentId, [FromBody] UpdateCommentDto commentDto)
     {
@@ -234,6 +243,7 @@ public class PostController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpDelete("comments/{commentId}")]
     public async Task<IActionResult> DeleteComment(int commentId)
     {
@@ -253,6 +263,7 @@ public class PostController : ControllerBase
         }
     }
 
+    [Authorize]
     [HttpPost("comments/{commentId}/like")]
     public async Task<IActionResult> ToggleCommentLike(int commentId)
     {
@@ -283,6 +294,12 @@ public class PostController : ControllerBase
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return int.Parse(userIdClaim ?? "0");
+    }
+
+    private int GetUserIdOrDefault()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return userIdClaim != null ? int.Parse(userIdClaim) : 0;
     }
 }
 

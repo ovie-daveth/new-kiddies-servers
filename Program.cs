@@ -7,7 +7,22 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
+// Load environment variables from .env file
+DotNetEnv.Env.Load();
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Override configuration with environment variables
+// Try both uppercase (standard) and lowercase (custom) variable names
+builder.Configuration["ParameterStore:BaseUrl"] = 
+    Environment.GetEnvironmentVariable("PARAMETER_STORE_BASE_URL") 
+    ?? Environment.GetEnvironmentVariable("baseUrl") 
+    ?? builder.Configuration["ParameterStore:BaseUrl"];
+
+builder.Configuration["ParameterStore:ApiKey"] = 
+    Environment.GetEnvironmentVariable("PARAMETER_STORE_API_KEY") 
+    ?? Environment.GetEnvironmentVariable("apiKey") 
+    ?? builder.Configuration["ParameterStore:ApiKey"];
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -113,13 +128,21 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure AppSettings for Parameter Store with HttpClient
+builder.Services.AddHttpClient<ChatApp.Backend.Configuration.AppSettings>();
+builder.Services.AddSingleton<ChatApp.Backend.Configuration.AppSettings>();
+
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IFileUploadService, FileUploadService>();
+builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddSingleton<IConnectionManager, ConnectionManager>();
+
+// Register Core Banking Service with HttpClient
+builder.Services.AddHttpClient<ICoreBankingService, CoreBankingService>();
 
 var app = builder.Build();
 

@@ -168,6 +168,70 @@ public class NotificationService : INotificationService
         await CreateNotification(notificationDto);
     }
 
+    public async Task CreateFriendRequestNotification(int addresseeId, int requesterId)
+    {
+        // Get the requester's info
+        var requester = await _context.Users.FindAsync(requesterId);
+        if (requester == null)
+            return;
+
+        var notificationDto = new CreateNotificationDto
+        {
+            UserId = addresseeId,  // User receiving the friend request
+            ActorUserId = requesterId,  // User sending the friend request
+            Title = "Friend Request",
+            Message = $"{requester.DisplayName ?? requester.Username} sent you a friend request!",
+            Type = NotificationType.FriendRequest,
+            Data = System.Text.Json.JsonSerializer.Serialize(new { RequesterId = requesterId })
+        };
+
+        await CreateNotification(notificationDto);
+    }
+
+    public async Task CreateFriendRequestAcceptedNotification(int requesterId, int accepterId)
+    {
+        // Get the accepter's info
+        var accepter = await _context.Users.FindAsync(accepterId);
+        if (accepter == null)
+            return;
+
+        var notificationDto = new CreateNotificationDto
+        {
+            UserId = requesterId,  // Original requester receives notification
+            ActorUserId = accepterId,  // User who accepted
+            Title = "Friend Request Accepted",
+            Message = $"{accepter.DisplayName ?? accepter.Username} accepted your friend request!",
+            Type = NotificationType.FriendRequestAccepted,
+            Data = System.Text.Json.JsonSerializer.Serialize(new { UserId = accepterId })
+        };
+
+        await CreateNotification(notificationDto);
+    }
+
+    public async Task CreateNewFollowerNotification(int followingId, int followerId)
+    {
+        // Don't notify yourself
+        if (followingId == followerId)
+            return;
+
+        // Get the follower's info
+        var follower = await _context.Users.FindAsync(followerId);
+        if (follower == null)
+            return;
+
+        var notificationDto = new CreateNotificationDto
+        {
+            UserId = followingId,  // User being followed receives notification
+            ActorUserId = followerId,  // User following
+            Title = "New Follower",
+            Message = $"{follower.DisplayName ?? follower.Username} started following you!",
+            Type = NotificationType.NewFollower,
+            Data = System.Text.Json.JsonSerializer.Serialize(new { FollowerId = followerId })
+        };
+
+        await CreateNotification(notificationDto);
+    }
+
     public async Task<List<NotificationDto>> GetUserNotifications(int userId, int skip = 0, int take = 20)
     {
         var notifications = await _context.Notifications
