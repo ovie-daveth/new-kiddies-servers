@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # SQL Server for local development
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: kiddies-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Password123
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    networks:
+      - kiddies-network
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong!Password123" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # API Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kiddies-api
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=KidsSocialMediaDb;User Id=sa;Password=YourStrong!Password123;TrustServerCertificate=True;
+      - JwtSettings__SecretKey=YourSuperSecretKeyHere_MinimumLength32Characters_ChangeThisInProduction!
+      - JwtSettings__Issuer=ChatApp.Backend
+      - JwtSettings__Audience=ChatApp.Client
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - kiddies-network
+    volumes:
+      - uploads:/app/wwwroot/uploads
+    restart: unless-stopped
+
+volumes:
+  sqldata:
+    driver: local
+  uploads:
+    driver: local
+
+networks:
+  kiddies-network:
+    driver: bridge
+

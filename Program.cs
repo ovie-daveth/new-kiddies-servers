@@ -106,7 +106,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:4200") // Add your frontend URLs
+        // Add your frontend URLs here
+        // For Azure deployment, add: "https://your-app-name.azurewebsites.net"
+        // For production frontend, add: "https://your-domain.com"
+        policy.WithOrigins(
+                "http://localhost:3000", 
+                "http://localhost:4200"
+                // Uncomment and update with your Azure URL after deployment:
+                // "https://kiddies-social-api.azurewebsites.net"
+              )
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -141,6 +149,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Health check endpoint
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
 
 // SignalR Hub Endpoints
 app.MapHub<ChatHub>("/hubs/chat");
